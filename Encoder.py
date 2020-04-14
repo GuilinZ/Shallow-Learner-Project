@@ -9,24 +9,25 @@ import torch
 from pointnet_util import PointNetSetAbstraction
 
 class Encoder(nn.Module):
-    def __init__(self, num_center_point):
+    def __init__(self, num_points):
+        super(Encoder, self).__init__()
         self.fe1 = FeatureExtractor_1()
-        self.fe2 = FeatureExtractor_2(num_center_point)
+        self.fe2 = FeatureExtractor_2(num_points)
         self.out_layer = nn.MaxPool2d((1, 2), 1)
 
     def forward(self, x):
-        x_down = self.downsampling(x) # (batch_size, 512, 3)
-        out_1 = self.fe1(x) # (batch_size, 1920)
+        x_down, out_1 = self.fe1(x) # (batch_size, 512, 3) || (batch_size, 1920)
         out_2 = self.fe2(x_down) # (batch_size, 1920)
         out = torch.cat((out_1, out_2), 2) # (batch_size, 1920, 2)
         out = self.out_layer(out) # (batch_size, 1920)
         return out
 
     def downsampling(self, x): # (batch_size, 2048, 3)
-        raise NotImplementedError # (batch_size, 512, 3)
+        pass
 
 class FeatureExtractor_1(nn.Module):
     def __init__(self):
+        super(FeatureExtractor_1, self).__init__()
         self.in_channel = 3
         self.sa1 = PointNetSetAbstraction(npoint = 1024, radius = 0.2, nsample = 32,
                                           in_channel = self.in_channel, mlp = [64, 64, 128], group_all = False)
@@ -48,20 +49,20 @@ class FeatureExtractor_1(nn.Module):
 
         output = l4_points.view(batch_size, 1920)
 
-        return output # (batch_size, 1920)
+        return l2_xyz, output # (batch_size, 1920)
 
 # num_center_point: number of generated center points from dense output
 class FeatureExtractor_2(nn.Module):
-    def __init__(self, num_center_point):
+    def __init__(self, num_points):
         super(FeatureExtractor_2, self).__init__()
-        self.num_center_point = num_center_point
+        self.num_points = num_points
         self.conv1 = torch.nn.Conv2d(1, 64, (1, 3))
         self.conv2 = torch.nn.Conv2d(64, 64, 1)
         self.conv3 = torch.nn.Conv2d(64, 128, 1)
         self.conv4 = torch.nn.Conv2d(128, 256, 1)
         self.conv5 = torch.nn.Conv2d(256, 512, 1)
         self.conv6 = nn.Conv2d(512, 1024, 1)
-        self.maxpool = nn.MaxPool2d((self.num_center_point, 1), 1)
+        self.maxpool = nn.MaxPool2d((self.num_points, 1), 1)
 
         self.bn1 = nn.BatchNorm2d(64)
         self.bn2 = nn.BatchNorm2d(64)
