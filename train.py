@@ -229,7 +229,7 @@ for epoch in range(resume_epoch, opt.niter):
 				 dis_err.data, errG, errG_D.data, errG_l2))
 	print('Training for epoch %d done'%(epoch))
 	# start of testing
-	if epoch % 10 == 0:
+	if epoch % 5 == 0:
 		print('After, ',epoch,'-th batch')
 		for i, data in enumerate(test_loader):
 			real_point, target = data
@@ -277,7 +277,7 @@ for epoch in range(resume_epoch, opt.niter):
 		f.close()
 		schedulerD.step()
 		schedulerG.step()
-		if epoch% 10 == 0:   
+		if epoch% 5 == 0:   
 			torch.save({'epoch':epoch+1,
 						'state_dict':gen_net.state_dict()},
 						'Trained_Model/gen_net'+str(epoch)+'.pth')
