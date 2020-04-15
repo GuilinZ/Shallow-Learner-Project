@@ -9,3 +9,4 @@ cd $SCRIPTPATH/shapenet_part/
 unzip shapenetcore_partanno_segmentation_benchmark_v0.zip
 rm shapenetcore_partanno_segmentation_benchmark_v0.zip
 cd $SCRIPTPATH
+mv shapenet_part_overallid_to_catid_partid.json shapenet_part/shapenetcore_partanno_segmentation_benchmark_v0/
