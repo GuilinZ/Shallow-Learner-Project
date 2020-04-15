@@ -23,7 +23,7 @@ parser.add_argument('--workers', type=int,default=2, help='number of data loadin
 parser.add_argument('--batchSize', type=int, default=12, help='input batch size')
 parser.add_argument('--pnum', type=int, default=2048, help='the point number of a sample')
 parser.add_argument('--crop_point_num',type=int,default=512,help='0 means do not use else use with this weight')
-parser.add_argument('--niter', type=int, default=1, help='number of epochs to train for')
+parser.add_argument('--niter', type=int, default=100, help='number of epochs to train for')
 parser.add_argument('--weight_decay', type=float, default=0.001)
 parser.add_argument('--learning_rate', default=0.0002, type=float, help='learning rate in training')
 parser.add_argument('--beta1', type=float, default=0.9, help='beta1 for adam. default=0.9')
