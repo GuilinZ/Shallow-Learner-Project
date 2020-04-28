@@ -37,7 +37,7 @@ class Decoder(nn.Module):
 		pc1_feat = F.relu(self.conv1_1(pc1_feat))
 		pc1_feat = F.relu(self.conv1_2(pc1_feat))
 		pc1_xyz = self.conv1_3(pc1_feat)  # 12x128
-		pc1_xyz = pc1_xyz.reshape(-1, 128, self.crop_point_num/128, 3)
+		pc1_xyz = pc1_xyz.reshape(-1, 128, int(self.crop_point_num/128), 3)
 
 		pc2_xyz_expand = torch.unsqueeze(pc2_xyz, 2) # 128x3x1 ----> should be 128x1x3
 		#print('pc2_xyz_expand', pc2_xyz_expand.shape)
