@@ -20,8 +20,8 @@ class Decoder(nn.Module):
 		self.fc1_1 = nn.Linear(1024, 128 * self.crop_point_num)
 		self.fc2_1 = nn.Linear(512, 128 * 3)
 
-		self.conv1_1 = torch.nn.Conv1d(self.crop_point_num, self.crop_point_num, 1)
-		self.conv1_2 = torch.nn.Conv1d(self.crop_point_num, 256, 1)
+		self.conv1_1 = torch.nn.Conv1d(self.crop_point_num, 512, 1)
+		self.conv1_2 = torch.nn.Conv1d(512, 256, 1)
 		self.conv1_3 = torch.nn.Conv1d(256, int((self.crop_point_num * 3) / 128), 1)
 
 	def forward(self, x):
