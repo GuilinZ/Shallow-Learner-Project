@@ -14,7 +14,7 @@ import torch.nn.parallel
 import torch.utils.data
 import torchvision.transforms as transforms
 import utils
-from utils import PointLoss
+from utils import PointLoss_test
 from utils import distance_squre
 import data_utils as d_utils
 import ModelNet40Loader
@@ -63,8 +63,9 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 test_dset = shapenet_part_loader.PartDataset( root='./dataset/shapenetcore_partanno_segmentation_benchmark_v0/',classification=True, class_choice='Airplane', npoints=opt.pnum, split='test')
 test_dataloader = torch.utils.data.DataLoader(test_dset, batch_size=opt.batchSize,
                                          shuffle=True,num_workers = int(opt.workers))
-criterion_PointLoss = PointLoss().to(device)
-losses = []
+criterion_PointLoss = PointLoss_test().to(device)
+losses1, losses2 = [], []
+print(len(test_dataloader))
 for i, data in enumerate(test_dataloader):
 	real_point, target = data
 	batch_size = real_point.size()[0]
@@ -109,12 +110,14 @@ for i, data in enumerate(test_dataloader):
 	gen_net.eval()
 
 	fake_center1, fake_fine = gen_net(input_cropped1)
-	CD_loss = criterion_PointLoss(torch.squeeze(fake_fine,1),torch.squeeze(real_center,1))
-	print('test CD loss: %.4f'%(CD_loss))
-	losses.append(CD_loss.item())
+	CD_loss_all, dist1, dist2 = criterion_PointLoss(torch.squeeze(fake_fine,1),torch.squeeze(real_center,1))
+	#print('test CD loss: %.4f'%(dist1.item()))
+	print('pred->GT|GT->pred:', dist1.item(), dist2.item())
+	losses1.append(dist1.item())
+	losses2.append(dist2.item())
 
-print('CD loss evaluated on all sample in given class:', np.average(losses))
-print('max CD loss: ', np.amax(losses))
-print('min CD loss: ', np.amin(losses))
+print('mean CD loss pred->GT|GT->pred:', np.mean(losses1)*1000, np.mean(losses2)*1000)
+print('max CD loss pred->GT|GT->pred: ', np.amax(losses1)*1000, np.amax(losses2)*1000)
+print('min CD loss: pred->GT|GT->pred', np.amin(losses1)*1000, np.amin(losses2)*1000)
 
 
