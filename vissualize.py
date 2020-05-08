@@ -39,7 +39,7 @@ parser.add_argument('--learning_rate', default=0.0002, type=float, help='learnin
 parser.add_argument('--beta1', type=float, default=0.9, help='beta1 for adam. default=0.9')
 parser.add_argument('--cuda', type = bool, default = False, help='enables cuda')
 parser.add_argument('--ngpu', type=int, default=2, help='number of GPUs to use')
-parser.add_argument('--netG', default='/media/louise/ubuntu_work2/lost+found/dl_project/Trained_Model/gen_net145.pth', help="path to netG (to continue training)")
+parser.add_argument('--netG', default='/media/louise/ubuntu_work2/lost+found/dl_project/Trained_Model/512_cut_num/gen_net180.pth', help="path to netG (to continue training)")
 parser.add_argument('--infile',type = str, default = 'test_files/crop12.csv')
 parser.add_argument('--infile_real',type = str, default = 'test_files/real11.csv')
 parser.add_argument('--netD', default='/media/louise/ubuntu_work2/lost+found/dl_project/Trained_Model/dis_net0.pth', help="path to netD (to continue training)")
@@ -47,7 +47,7 @@ parser.add_argument('--manualSeed', type=int, help='manual seed')
 parser.add_argument('--drop',type=float,default=0.2)
 parser.add_argument('--num_scales',type=int,default=3,help='number of scales')
 # Set the first parameter of '--point_scales_list' equal to (point_number + 512).
-parser.add_argument('--point_scales_list',type=list,default=[2048,512],help='number of points in each scales')
+parser.add_argument('--point_scales_list',type=list,default=[2048,1024],help='number of points in each scales')
 parser.add_argument('--each_scales_size',type=int,default=1,help='each scales size')
 parser.add_argument('--wtl2',type=float,default=0.9,help='0 means do not use else use with this weight')
 parser.add_argument('--cropmethod', default = 'random_center', help = 'random|center|random_center')
@@ -153,7 +153,7 @@ for i, data in enumerate(test_dataloader):
 	input_cropped1 = input_cropped1.cpu()
 	np_crop = input_cropped1[0].numpy() 
 
-	print(np_fake.shape, np_fake1.shape, np_crop.shape)
+	print(np_fake.shape, np_crop.shape, real_center.shape)
 	#display = np.vstack((np_fake, np_fake1, np_crop))
 	x = np_crop[:, 0]  # x position of point
 	y = np_crop[:, 1]  # y position of point
@@ -162,6 +162,7 @@ for i, data in enumerate(test_dataloader):
 	xf = np_fake[:, 0]  # x position of point
 	yf = np_fake[:, 1]  # y position of point
 	zf = np_fake[:, 2]  # z position of point
+
 	#d = np.sqrt(x ** 2 + y ** 2)  # Map Distance from sensor
 	 
 	vals='height'
@@ -170,27 +171,23 @@ for i, data in enumerate(test_dataloader):
 	else:
 	    col = d
 	 
-	fig = mlab.figure(bgcolor=(0, 0, 0), size=(640, 500))
+	fig = mlab.figure(bgcolor=(1, 1, 1), size=(640, 500))
 	mlab.points3d(x, y, z,
-						 color=(0, 1, 0),
-	                     #col,          # Values used for Color
-	                     mode="point",
-	                     #colormap='spectral', # 'bone', 'copper', 'gnuplot'
-	                     # color=(0, 1, 0),   # Used a fixed (r,g,b) instead
+						 color=(0.9, 0.87, 0.54),
+	                     mode="sphere",
+	                     scale_factor = 0.06,
 	                     figure=fig,
 	                     )
 
 	mlab.points3d(xf, yf, zf,
-					 color=(1, 0, 0),
-                     #col,          # Values used for Color
-                     mode="point",
-                     #colormap='spectral', # 'bone', 'copper', 'gnuplot'
-                     # color=(0, 1, 0),   # Used a fixed (r,g,b) instead
+					 color=(0.9, 0.87, 0.54), #baby blue: 0.54, 0.82, 0.94
+                     mode="sphere",
+                     scale_factor = 0.06,
                      figure=fig,
                      )
 	mlab.show()
-	#np.savetxt('test_one/crop_ours'+'.csv', np_crop, fmt = "%f,%f,%f")
-	#np.savetxt('test_one/fake_ours'+'.csv', np_fake, fmt = "%f,%f,%f")
-	#np.savetxt('test_one/crop_ours_txt'+'.txt', np_crop, fmt = "%f,%f,%f")
-	#np.savetxt('test_one/fake_ours_txt'+'.txt', np_fake, fmt = "%f,%f,%f")
-	    
+	np.savetxt('test/crop_ours'+'.csv', np_crop, fmt = "%f,%f,%f")
+	np.savetxt('test/fake_ours'+'.csv', np_fake, fmt = "%f,%f,%f")
+	np.savetxt('test/crop_ours_txt'+'.txt', np_crop, fmt = "%f,%f,%f")
+	np.savetxt('test/fake_ours_txt'+'.txt', np_fake, fmt = "%f,%f,%f")
+	  
