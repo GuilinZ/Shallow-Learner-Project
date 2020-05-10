@@ -21,21 +21,16 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--dataroot',  default='dataset/train', help='path to dataset')
 parser.add_argument('--workers', type=int,default=2, help='number of data loading workers')
 parser.add_argument('--batchSize', type=int, default=12, help='input batch size')
-parser.add_argument('--pnum', type=int, default=2048, help='the point number of a sample')
 parser.add_argument('--crop_point_num',type=int,default=512,help='0 means do not use else use with this weight')
 parser.add_argument('--niter', type=int, default=100, help='number of epochs to train for')
-parser.add_argument('--weight_decay', type=float, default=0.001)
 parser.add_argument('--learning_rate', default=0.0002, type=float, help='learning rate in training')
-parser.add_argument('--beta1', type=float, default=0.9, help='beta1 for adam. default=0.9')
 parser.add_argument('--cuda', type = bool, default = False, help='enables cuda')
 parser.add_argument('--ngpu', type=int, default=1, help='number of GPUs to use')
 parser.add_argument('--manualSeed', type=int, help='manual seed')
-parser.add_argument('--drop',type=float,default=0.2) # not sure what this does
 parser.add_argument('--num_scales',type=int,default=2,help='number of scales')
 parser.add_argument('--point_scales_list',type=list,default=[2048,512],help='number of points in each scales')
 parser.add_argument('--each_scales_size',type=int,default=1,help='each scales size')
 parser.add_argument('--wtl2',type=float,default=0.95,help='0 means do not use else use with this weight')
-parser.add_argument('--cropmethod', default = 'random_center', help = 'random|center|random_center')
 parser.add_argument('--netG', default='', help="put in gen_net.pth location to continue training)")
 parser.add_argument('--netD', default='', help="put in dis_net.pth location to continue training)")
 opt = parser.parse_args()
@@ -131,11 +126,11 @@ for epoch in range(resume_epoch, opt.niter):
 		lam1 = 0.01
 		lam2 = 0.02
 	elif epoch<80:
-		lam1 = 0.05
+		lam1 = 0.08
 		lam2 = 0.1
 	else:
-		lam1 = 0.1
-		lam2 = 0.2
+		lam1 = 0.4
+		lam2 = 0.5
 	
 	for i, data in enumerate(train_loader):
 		real_point, target = data
@@ -156,10 +151,8 @@ for epoch in range(resume_epoch, opt.niter):
 				p_center = index[0]
 				for n in range(opt.pnum):
 					distance_list.append(distance_squre(real_point[m,0,n],p_center))
-				distance_order = sorted(enumerate(distance_list), key  = lambda x:x[1])
 				
 				for sp in range(opt.crop_point_num):
-					input_cropped1.data[m,0,distance_order[sp][0]] = torch.FloatTensor([0,0,0])
 					real_center.data[m,0,sp] = real_point[m,0,distance_order[sp][0]]
 		label.resize_([batch_size,1]).fill_(real_label)
 		real_point = real_point.to(device) # real_point.shape = [24, 1, 2048, 3]
@@ -168,20 +161,11 @@ for epoch in range(resume_epoch, opt.niter):
 		label = label.to(device) # real label construction done
 		
 		# obtain data for the two channels
-		real_center = Variable(real_center,requires_grad=True)
 		real_center = torch.squeeze(real_center,1) # [24, 512, 3]
-		real_center_key1_idx = utils.farthest_point_sample(real_center, 128,RAN = False)
 		real_center_key1 = utils.index_points(real_center,real_center_key1_idx)
-		real_center_key1 = Variable(real_center_key1,requires_grad=True) # [24, 128, 3]
 
 		input_cropped1 = torch.squeeze(input_cropped1,1)
-		input_cropped1 = Variable(input_cropped1,requires_grad=True) # [24, 2048, 3]
 
-		input_cropped2_idx = utils.farthest_point_sample(input_cropped1, opt.point_scales_list[1],RAN = True)
-		input_cropped2 = utils.index_points(input_cropped1,input_cropped2_idx)
-
-		input_cropped2 = Variable(input_cropped2,requires_grad=True)
-		input_cropped2 = input_cropped2.to(device) # [24, 512, 3]
 		input_cropped = [input_cropped1, input_cropped2] # make sure if inputs are 2048 and 512
 		gen_net = gen_net.train()
 		dis_net = dis_net.train()
@@ -199,11 +183,8 @@ for epoch in range(resume_epoch, opt.niter):
 
 		fake_fine = torch.unsqueeze(fake_fine,1)
 		label.data.fill_(fake_label)
-		fake_out = dis_net(fake_fine.detach())
 		dis_err_fake = criterion(fake_out, label)
 		dis_err_fake.backward()
-		dis_err = dis_err_real + dis_err_fake
-		optimizerD.step()
 
 		# update generator objective max(log(D(G(z))))
 		gen_net.zero_grad()
@@ -215,7 +196,7 @@ for epoch in range(resume_epoch, opt.niter):
 		errG_l2 = criterion_PointLoss(torch.squeeze(fake_fine,1),torch.squeeze(real_center,1))\
 		+lam1*criterion_PointLoss(fake_center1,real_center_key1) # generator loss(AE loss)
 		
-		errG = (1-opt.wtl2) * errG_D + opt.wtl2 * errG_l2 # total adversarial loss
+		errG = opt.wtl2 * errG_D + opt.wtl2  # total adversarial loss
 		#print('errG', errG)
 		errG.backward()
 		optimizerG.step()
@@ -256,18 +237,10 @@ for epoch in range(resume_epoch, opt.niter):
 					for sp in range(opt.crop_point_num):
 						input_cropped1.data[m,0,distance_order[sp][0]] = torch.FloatTensor([0,0,0])
 						real_center.data[m,0,sp] = real_point[m,0,distance_order[sp][0]]  
-			real_center = real_center.to(device)
 			real_center = torch.squeeze(real_center,1)
-			input_cropped1 = input_cropped1.to(device) 
 			input_cropped1 = torch.squeeze(input_cropped1,1)
-			input_cropped2_idx = utils.farthest_point_sample(input_cropped1,opt.point_scales_list[1],RAN = True)
-			input_cropped2 = utils.index_points(input_cropped1,input_cropped2_idx)
 
-			input_cropped1 = Variable(input_cropped1,requires_grad = False)
-			input_cropped2 = Variable(input_cropped2,requires_grad = False)
 			input_cropped2 = input_cropped2.to(device)
-			input_cropped = [input_cropped1,input_cropped2]
-			gen_net.eval()
 			fake_center1, fake_fine = gen_net(input_cropped1)
 			CD_loss = criterion_PointLoss(torch.squeeze(fake_fine,1),torch.squeeze(real_center,1))
 			print('test CD loss: %.4f'%(CD_loss))
