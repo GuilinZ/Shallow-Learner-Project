@@ -23,10 +23,11 @@ parser.add_argument('--workers', type=int,default=2, help='number of data loadin
 parser.add_argument('--batchSize', type=int, default=12, help='input batch size')
 parser.add_argument('--crop_point_num',type=int,default=512,help='0 means do not use else use with this weight')
 parser.add_argument('--niter', type=int, default=100, help='number of epochs to train for')
-parser.add_argument('--learning_rate', default=0.0002, type=float, help='learning rate in training')
+parser.add_argument('--batchSize', type=int, default=8, help='input batch size')
 parser.add_argument('--cuda', type = bool, default = False, help='enables cuda')
 parser.add_argument('--ngpu', type=int, default=1, help='number of GPUs to use')
 parser.add_argument('--manualSeed', type=int, help='manual seed')
+parser.add_argument('--drop',type=float,default=0.2)
 parser.add_argument('--num_scales',type=int,default=2,help='number of scales')
 parser.add_argument('--point_scales_list',type=list,default=[2048,512],help='number of points in each scales')
 parser.add_argument('--each_scales_size',type=int,default=1,help='each scales size')
@@ -141,20 +142,8 @@ for epoch in range(resume_epoch, opt.niter):
 		real_point = torch.unsqueeze(real_point, 1)
 		input_cropped1 = torch.unsqueeze(input_cropped1,1) # input_cropped1.shape = [24, 1, 2024, 3]
 		p_origin = [0,0,0]
-
-		if opt.cropmethod == 'random_center':
-			# set viewpoints
-			choice = [torch.Tensor([1,0,0]),torch.Tensor([0,0,1]),torch.Tensor([1,0,1]),torch.Tensor([-1,0,0]),torch.Tensor([-1,1,0])]
-			for m in range(batch_size):
-				index = random.sample(choice,1)#Random choose one of the viewpoint
-				distance_list = []
-				p_center = index[0]
-				for n in range(opt.pnum):
-					distance_list.append(distance_squre(real_point[m,0,n],p_center))
-				
-				for sp in range(opt.crop_point_num):
-					real_center.data[m,0,sp] = real_point[m,0,distance_order[sp][0]]
 		label.resize_([batch_size,1]).fill_(real_label)
+		if real_point.size()[0] < opt.batchSize: continue
 		real_point = real_point.to(device) # real_point.shape = [24, 1, 2048, 3]
 		real_center = real_center.to(device) # real_center.shape = [24, 1, 512, 3]
 		input_cropped1 = input_cropped1.to(device) # input_cropped1.shape = [24, 1, 2048, 3]
@@ -172,26 +161,14 @@ for epoch in range(resume_epoch, opt.niter):
 
 		# update discriminator
 		dis_net.zero_grad()
-		#print('real center shape', real_center.shape)
-		real_center = torch.unsqueeze(real_center,1)   
+		real_center = torch.unsqueeze(real_center,1)  
+		print('real center shape', real_center.shape) 
 		real_out = dis_net(real_center)
 		#print('real label shape', label.shape)
 		dis_err_real = criterion(real_out, label)
 		dis_err_real.backward()
 
 		fake_center1,fake_fine = gen_net(input_cropped1)
-
-		fake_fine = torch.unsqueeze(fake_fine,1)
-		label.data.fill_(fake_label)
-		dis_err_fake = criterion(fake_out, label)
-		dis_err_fake.backward()
-
-		# update generator objective max(log(D(G(z))))
-		gen_net.zero_grad()
-		label.data.fill_(real_label)
-		fake_out = dis_net(fake_fine)
-		errG_D = criterion(fake_out, label) # discriminator loss of fake points
-		errG_l2 = 0
    
 		errG_l2 = criterion_PointLoss(torch.squeeze(fake_fine,1),torch.squeeze(real_center,1))\
 		+lam1*criterion_PointLoss(fake_center1,real_center_key1) # generator loss(AE loss)
@@ -207,37 +184,21 @@ for epoch in range(resume_epoch, opt.niter):
 		f.write('\n'+'Epoch[%d/%d] Batch[%d/%d] D_loss: %.4f G_loss: %.4f errG_D: %.4f errG_l2: %.4f'
 			  % (epoch, opt.niter, i, len(train_loader), 
 				 dis_err.data, errG, errG_D.data, errG_l2))
-	
+	print('Training for epoch %d done'%(epoch))
 	# start of testing
-	f=open('loss_PFNet.txt','a')
-	if epoch % 10 == 0:
+	if epoch % 5 == 0:
 		print('After, ',epoch,'-th batch')
 		for i, data in enumerate(test_loader):
 			real_point, target = data
 			batch_size = real_point.size()[0]
+			if batch_size < opt.batchSize: continue
 			real_center = torch.FloatTensor(batch_size, 1, opt.crop_point_num, 3)
 			input_cropped1 = torch.FloatTensor(batch_size, opt.pnum, 3)
 			input_cropped1 = input_cropped1.data.copy_(real_point)
 
 			real_point = torch.unsqueeze(real_point, 1)
 			input_cropped1 = torch.unsqueeze(input_cropped1,1)
-
-			p_origin = [0,0,0]
-
-			if opt.cropmethod == 'random_center':
-				choice = [torch.Tensor([1,0,0]),torch.Tensor([0,0,1]),torch.Tensor([1,0,1]),torch.Tensor([-1,0,0]),torch.Tensor([-1,1,0])]
 				
-				for m in range(batch_size):
-					index = random.sample(choice,1)
-					distance_list = []
-					p_center = index[0]
-					for n in range(opt.pnum):
-						distance_list.append(distance_squre(real_point[m,0,n],p_center))
-					distance_order = sorted(enumerate(distance_list), key  = lambda x:x[1])                         
-					for sp in range(opt.crop_point_num):
-						input_cropped1.data[m,0,distance_order[sp][0]] = torch.FloatTensor([0,0,0])
-						real_center.data[m,0,sp] = real_point[m,0,distance_order[sp][0]]  
-			real_center = torch.squeeze(real_center,1)
 			input_cropped1 = torch.squeeze(input_cropped1,1)
 
 			input_cropped2 = input_cropped2.to(device)
@@ -249,7 +210,7 @@ for epoch in range(resume_epoch, opt.niter):
 		f.close()
 		schedulerD.step()
 		schedulerG.step()
-		if epoch% 10 == 0:   
+		if epoch% 5 == 0:   
 			torch.save({'epoch':epoch+1,
 						'state_dict':gen_net.state_dict()},
 						'Trained_Model/gen_net'+str(epoch)+'.pth')
